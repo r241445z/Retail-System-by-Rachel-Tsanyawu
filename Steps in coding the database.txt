@@ -1,0 +1,80 @@
+-- Create Database
+IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'Retail')
+BEGIN
+    CREATE DATABASE Retail;
+END;
+GO
+
+USE Retail;
+GO
+
+-- 1. Users Table
+CREATE TABLE Users (
+    user_id INT IDENTITY(1,1) PRIMARY KEY,
+    username NVARCHAR(50) NOT NULL UNIQUE,
+    password_hash NVARCHAR(255) NOT NULL,
+    role NVARCHAR(20) NOT NULL CHECK (role IN ('Teller','Admin','IT_Support')),
+    created_at DATETIME2 DEFAULT SYSDATETIME()
+);
+
+-- 2. IP Logs Table
+CREATE TABLE IP_Logs (
+    ip_id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id INT NOT NULL,
+    detected_ip NVARCHAR(50) NOT NULL,
+    adjusted_ip NVARCHAR(50) NULL,
+    status NVARCHAR(20) NOT NULL DEFAULT 'Detected' 
+           CHECK (status IN ('Detected','Adjusted','Failed')),
+    timestamp DATETIME2 DEFAULT SYSDATETIME(),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+);
+
+-- 3. Network Status Table
+CREATE TABLE Network_Status (
+    network_id INT IDENTITY(1,1) PRIMARY KEY,
+    status NVARCHAR(10) NOT NULL CHECK (status IN ('Up','Down')),
+    detected_at DATETIME2 DEFAULT SYSDATETIME(),
+    resolved_at DATETIME2 NULL,
+    downtime_seconds INT DEFAULT 0
+);
+
+-- 4. SSO Logins Table
+CREATE TABLE SSO_Logins (
+    login_id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id INT NOT NULL,
+    login_time DATETIME2 DEFAULT SYSDATETIME(),
+    status NVARCHAR(10) NOT NULL DEFAULT 'Success'
+           CHECK (status IN ('Success','Failure')),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+);
+
+-- 5. Hardware Issues Table
+CREATE TABLE Hardware_Issues (
+    issue_id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id INT NOT NULL,
+    issue_type NVARCHAR(20) NOT NULL CHECK (issue_type IN ('Cartridge_Jam','Printer_Error','Scanner_Error','Other')),
+    description NVARCHAR(MAX) NULL,
+    detected_at DATETIME2 DEFAULT SYSDATETIME(),
+    resolved_at DATETIME2 NULL,
+    resolution_status NVARCHAR(10) NOT NULL DEFAULT 'Pending'
+                      CHECK (resolution_status IN ('Pending','Resolved')),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+);
+
+-- 6. System Alerts Table
+CREATE TABLE System_Alerts (
+    alert_id INT IDENTITY(1,1) PRIMARY KEY,
+    alert_type NVARCHAR(20) NOT NULL CHECK (alert_type IN ('IP','Network','SSO','Hardware','Monitoring')),
+    severity NVARCHAR(10) NOT NULL CHECK (severity IN ('Low','Medium','High','Critical')),
+    message NVARCHAR(MAX) NOT NULL,
+    detected_at DATETIME2 DEFAULT SYSDATETIME(),
+    resolved_at DATETIME2 NULL,
+    resolved_by INT NULL,
+    FOREIGN KEY (resolved_by) REFERENCES Users(user_id)
+);
+
+-- Insert sample users
+INSERT INTO Users (username, password_hash, role) VALUES
+('teller1', 'hashed_password_123', 'Teller'),
+('admin1', 'hashed_password_abc', 'Admin'),
+('it_support1', 'hashed_password_xyz', 'IT_Support');
